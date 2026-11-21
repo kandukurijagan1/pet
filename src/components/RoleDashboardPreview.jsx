@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, Check, Send, Camera, Upload, Eye, Truck,
   DollarSign, Package, Lock, MessageSquare, BarChart3,
   BadgeCheck, Sparkles, Key, Copy, Mail, RefreshCw,
-  ExternalLink, Globe, FileCode, Settings, Edit2, Pencil, Phone, MapPin, Database
+  ExternalLink, Globe, FileCode, Settings, Edit2, Pencil, Phone, MapPin, Database, LogIn
 } from 'lucide-react';
 import { MAIN_ADMIN_EMAIL } from '../mockData';
 import AdminCustomerChat from './AdminCustomerChat';
@@ -203,7 +203,9 @@ export default function RoleDashboardPreview({
   onUpdateCustomerPhoto,
   appscriptUrl = '',
   onSaveAppscriptUrl,
-  onTestAppscriptEmail
+  onTestAppscriptEmail,
+  onSwitchUser,
+  onLoadDemoRequest
 }) {
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -403,7 +405,7 @@ export default function RoleDashboardPreview({
   const myPhoto = myCustomerRecord?.photo || myRequest?.photo || currentUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${currentUser.name}`;
 
   // Admin Data
-  const pendingRequests = customerRequests.filter((r) => r.status === 'pending');
+  const pendingRequests = customerRequests.filter((r) => !r.status || r.status === 'pending');
   const totalPlatformRevenue = orders.reduce((sum, o) => sum + (parseFloat(o.petPrice) || 0), 0);
   const totalOrdersCount = orders.length;
   const dispatchedOrdersCount = orders.filter((o) => (o.status || '').includes('Dispatched')).length;
@@ -1718,8 +1720,20 @@ export default function RoleDashboardPreview({
                 </h4>
 
                 {pendingRequests.length === 0 ? (
-                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-400">
-                    No pending customer requests at this time. All applicants have been reviewed!
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500 space-y-3">
+                    <p>No pending customer requests at this time. All applicants have been reviewed!</p>
+                    {onLoadDemoRequest && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={onLoadDemoRequest}
+                          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <UserPlus className="w-4 h-4" />
+                          <span>Load Sample Applicant (Pawan Kalyan with Photo)</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -1932,6 +1946,19 @@ export default function RoleDashboardPreview({
                                 <Edit2 className="w-3 h-3" />
                                 <span>Edit</span>
                               </button>
+
+                              {/* TEST PORTAL AS THIS CUSTOMER */}
+                              {onSwitchUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => onSwitchUser({ email: customer.email, name: customer.name })}
+                                  className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Test Portal as this Customer"
+                                >
+                                  <LogIn className="w-3 h-3" />
+                                  <span>Portal</span>
+                                </button>
+                              )}
 
                               {/* REVOKE CUSTOMER BUTTON */}
                               <button
@@ -3732,6 +3759,22 @@ export default function RoleDashboardPreview({
                     <div className="pt-2">
                       <span className="text-[11px] font-bold text-amber-900 block mb-1">Your Submitted Photo:</span>
                       <img src={myRequest.photo} alt="Submitted" className="w-20 h-20 rounded-xl object-cover border-2 border-amber-400" />
+                    </div>
+                  )}
+
+                  {onSwitchUser && (
+                    <div className="pt-3 border-t border-amber-200/80 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAdminTab('approvals');
+                          onSwitchUser({ email: MAIN_ADMIN_EMAIL, name: 'Kandukuri Jagan' });
+                        }}
+                        className="px-4 py-2.5 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>👉 Switch to Main Admin ({MAIN_ADMIN_EMAIL}) to Review & Accept</span>
+                      </button>
                     </div>
                   )}
                 </div>

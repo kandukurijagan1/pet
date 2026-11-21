@@ -612,6 +612,28 @@ export default function App() {
     }
   };
 
+  // Restore/Load Sample Demo Request for Admin Review (works on both localhost & static GitHub Pages)
+  const handleLoadDemoRequest = () => {
+    const demoReq = (INITIAL_CUSTOMER_REQUESTS && INITIAL_CUSTOMER_REQUESTS[0]) ? INITIAL_CUSTOMER_REQUESTS[0] : {
+      id: `req-${Date.now()}`,
+      email: 'nenduku644@gmail.com',
+      name: 'pawan kalyan',
+      photo: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80',
+      note: 'Photo submitted for Customer verification and pet listing rights.',
+      requestedAt: new Date().toISOString().split('T')[0],
+      status: 'pending'
+    };
+    const reqWithPending = {
+      ...demoReq,
+      id: `req-${Date.now()}`,
+      status: 'pending'
+    };
+    setCustomerRequests((prev) => [
+      reqWithPending,
+      ...prev.filter(r => r.email.toLowerCase() !== reqWithPending.email.toLowerCase())
+    ]);
+  };
+
   // Chat message sending
   const handleSendMessage = async (msgData) => {
     const newMsg = {
@@ -816,6 +838,8 @@ export default function App() {
             appscriptUrl={appscriptUrl}
             onSaveAppscriptUrl={handleSaveAppscriptUrl}
             onTestAppscriptEmail={handleTestAppscriptEmail}
+            onSwitchUser={handleLoginSuccess}
+            onLoadDemoRequest={handleLoadDemoRequest}
           />
         ) : (
           /* Login Page */
