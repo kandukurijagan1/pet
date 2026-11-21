@@ -1720,9 +1720,9 @@ export default function RoleDashboardPreview({
                     {pendingRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        className="p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 overflow-hidden"
                       >
-                        <div className="flex items-center gap-3.5">
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1 overflow-hidden">
                           {req.photo ? (
                             <div 
                               className="relative cursor-pointer group shrink-0"
@@ -1744,17 +1744,17 @@ export default function RoleDashboardPreview({
                             </div>
                           )}
 
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-slate-900 text-sm">{req.name}</span>
-                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-slate-900 text-sm truncate">{req.name}</span>
+                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 shrink-0">
                                 Photo Verification
                               </span>
                             </div>
-                            <div className="text-xs font-mono text-slate-600">{req.email}</div>
+                            <div className="text-xs font-mono text-slate-600 truncate">{req.email}</div>
                             {req.note && (
-                              <div className="text-[11px] text-slate-600 italic mt-0.5">
-                                "{req.note}"
+                              <div className="text-[11px] text-slate-600 italic mt-0.5 truncate max-w-md">
+                                "{req.note.startsWith('data:image') || req.note.includes(';base64,') ? 'Photo verification submitted for Customer approval.' : req.note}"
                               </div>
                             )}
                             <div className="text-[10px] text-slate-400 mt-0.5">
@@ -1763,20 +1763,20 @@ export default function RoleDashboardPreview({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0 z-10">
                           <button
                             type="button"
                             onClick={() => onRejectCustomerRequest(req.id)}
-                            className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 rounded-xl transition-colors cursor-pointer"
+                            className="px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 border border-red-200 rounded-xl transition-colors cursor-pointer"
                           >
                             Reject
                           </button>
                           <button
                             type="button"
                             onClick={() => onAcceptCustomerRequest(req.id)}
-                            className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                            className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
-                            <Check className="w-3.5 h-3.5" />
+                            <Check className="w-4 h-4" />
                             <span>Accept Customer</span>
                           </button>
                         </div>

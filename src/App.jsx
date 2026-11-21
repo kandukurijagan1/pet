@@ -33,7 +33,14 @@ export default function App() {
       const saved = localStorage.getItem('pawnest_requests');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((r) => {
+            if (r.note && (r.note.startsWith('data:image') || r.note.includes(';base64,'))) {
+              return { ...r, note: 'Photo verification submitted for Customer approval.' };
+            }
+            return r;
+          });
+        }
       }
       return INITIAL_CUSTOMER_REQUESTS;
     } catch {
