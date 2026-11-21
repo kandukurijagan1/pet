@@ -13,11 +13,46 @@ import {
 import { ShieldCheck, PawPrint, ShoppingBag, Sparkles, UserPlus, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
-  const [authorizedCustomers, setAuthorizedCustomers] = useState(INITIAL_CUSTOMERS);
-  const [customerRequests, setCustomerRequests] = useState(INITIAL_CUSTOMER_REQUESTS);
-  const [pets, setPets] = useState(INITIAL_PETS);
-  const [orders, setOrders] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [authorizedCustomers, setAuthorizedCustomers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pawnest_customers');
+      return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+    } catch {
+      return INITIAL_CUSTOMERS;
+    }
+  });
+  const [customerRequests, setCustomerRequests] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pawnest_requests');
+      return saved ? JSON.parse(saved) : INITIAL_CUSTOMER_REQUESTS;
+    } catch {
+      return INITIAL_CUSTOMER_REQUESTS;
+    }
+  });
+  const [pets, setPets] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pawnest_pets');
+      return saved ? JSON.parse(saved) : INITIAL_PETS;
+    } catch {
+      return INITIAL_PETS;
+    }
+  });
+  const [orders, setOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pawnest_orders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pawnest_messages');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_cart');
@@ -28,11 +63,43 @@ export default function App() {
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [userDashboardTab, setUserDashboardTab] = useState('marketplace');
-  const [appscriptUrl, setAppscriptUrl] = useState('');
+  const [appscriptUrl, setAppscriptUrl] = useState(() => {
+    try {
+      return localStorage.getItem('pawnest_appscript_url') || '';
+    } catch {
+      return '';
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem('pawnest_cart', JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('pawnest_customers', JSON.stringify(authorizedCustomers));
+  }, [authorizedCustomers]);
+
+  useEffect(() => {
+    localStorage.setItem('pawnest_requests', JSON.stringify(customerRequests));
+  }, [customerRequests]);
+
+  useEffect(() => {
+    localStorage.setItem('pawnest_pets', JSON.stringify(pets));
+  }, [pets]);
+
+  useEffect(() => {
+    localStorage.setItem('pawnest_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('pawnest_messages', JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    if (appscriptUrl) {
+      localStorage.setItem('pawnest_appscript_url', appscriptUrl);
+    }
+  }, [appscriptUrl]);
 
   // Active Authenticated User from session
   const [currentUser, setCurrentUser] = useState(() => {
@@ -383,17 +450,41 @@ export default function App() {
           verifiedBy: currentUser ? currentUser.email : 'customer'
         })
       });
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         await syncWithBackend();
         return { success: true, data };
-      } else {
-        return { success: false, error: data.error || 'Failed to verify OTP' };
       }
     } catch (e) {
-      console.error(e);
-      return { success: false, error: 'Network error verifying OTP' };
+      console.warn('API verification error, checking locally:', e);
     }
+
+    // Client-side fallback (for static deployment / offline mode)
+    const ord = orders.find(o => o.id === orderId);
+    if (ord && String(ord.deliveryOtp).trim() === String(otp).trim()) {
+      const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+      const updated = {
+        ...ord,
+        status: 'Delivered (COD Collected & Verified)',
+        verifiedWithOtp: true,
+        completedAt: nowStr
+      };
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      return { success: true, data: { order: updated } };
+    }
+    return { success: false, error: `Invalid OTP "${otp}". Please ask the buyer for their 6-digit code.` };
+  };
+
+  // Order Placed Handler (with instant state update and backend sync)
+  const handleOrderPlaced = (newOrders) => {
+    if (Array.isArray(newOrders) && newOrders.length > 0) {
+      setOrders(prev => {
+        const existingIds = new Set(prev.map(o => o.id));
+        const filteredNew = newOrders.filter(o => !existingIds.has(o.id));
+        return [...filteredNew, ...prev];
+      });
+    }
+    syncWithBackend();
   };
 
   // Admin Action: Accept Customer Request
@@ -562,7 +653,7 @@ export default function App() {
             onAddToCart={handleAddToCart}
             onRemoveFromCart={handleRemoveFromCart}
             onClearCart={handleClearCart}
-            onOrderPlaced={() => syncWithBackend()}
+            onOrderPlaced={handleOrderPlaced}
             onOpenCart={handleOpenCart}
             onAddPet={handleAddPet}
             onDeletePet={handleDeletePet}
@@ -701,7 +792,7 @@ export default function App() {
         onRemoveFromCart={handleRemoveFromCart}
         onClearCart={handleClearCart}
         currentUser={currentUser}
-        onOrderPlaced={() => syncWithBackend()}
+        onOrderPlaced={handleOrderPlaced}
       />
 
       {/* Footer */}

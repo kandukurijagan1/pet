@@ -15,5 +15,16 @@
   <body class="bg-gradient-to-br from-amber-50/50 via-slate-50 to-orange-50/40 min-h-screen text-slate-800">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Automatic GitHub Pages fallback: forwards uncompiled root visits to compiled docs -->
+    <script>
+      (function() {
+        if (window.location.hostname.includes('github.io') && !window.location.pathname.includes('/docs')) {
+          if (document.querySelector('script[src*="main.jsx"]')) {
+            var clean = window.location.pathname.replace(/\/+$/, '');
+            window.location.replace(clean + '/docs/');
+          }
+        }
+      })();
+    </script>
   </body>
 </html>

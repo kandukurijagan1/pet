@@ -5,6 +5,7 @@ import dbPlugin from './vite-db-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     tailwindcss(),
