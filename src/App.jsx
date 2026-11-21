@@ -19,7 +19,11 @@ export default function App() {
   const [authorizedCustomers, setAuthorizedCustomers] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_customers');
-      return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_CUSTOMERS;
     } catch {
       return INITIAL_CUSTOMERS;
     }
@@ -27,7 +31,11 @@ export default function App() {
   const [customerRequests, setCustomerRequests] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_requests');
-      return saved ? JSON.parse(saved) : INITIAL_CUSTOMER_REQUESTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_CUSTOMER_REQUESTS;
     } catch {
       return INITIAL_CUSTOMER_REQUESTS;
     }
@@ -35,7 +43,11 @@ export default function App() {
   const [pets, setPets] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_pets');
-      return saved ? JSON.parse(saved) : INITIAL_PETS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_PETS;
     } catch {
       return INITIAL_PETS;
     }
