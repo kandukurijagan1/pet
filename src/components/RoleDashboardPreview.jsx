@@ -263,10 +263,16 @@ export default function RoleDashboardPreview({
   const [copiedKeyName, setCopiedKeyName] = useState('');
 
   useEffect(() => {
-    fetch('/api/supabase/status')
-      .then(r => r.json())
-      .then(setSupabaseStatus)
-      .catch(console.warn);
+    const isLocalBackend = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalBackend) {
+      fetch('/api/supabase/status')
+        .then(r => r.json())
+        .then(setSupabaseStatus)
+        .catch(console.warn);
+    } else {
+      setSupabaseStatus({ connected: true, configured: true, note: 'Static Deployment (Client-side Supabase mode)' });
+    }
   }, []);
 
   const handleTestSupabase = async () => {

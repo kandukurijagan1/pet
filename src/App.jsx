@@ -170,8 +170,12 @@ export default function App() {
     return 'user';
   }, []);
 
-  // Fetch shared database from Vite server backend with version caching
+  // Fetch shared database from Vite server backend with version caching (only on localhost)
   const syncWithBackend = useCallback(async () => {
+    const isLocalBackend = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (!isLocalBackend) return;
+
     if (isSyncingRef.current) return;
     isSyncingRef.current = true;
     try {
@@ -227,14 +231,19 @@ export default function App() {
     }
   }, [resolveRole]);
 
-  // Poll shared database every 2.5 seconds for real-time multi-window sync
+  // Poll shared database ONLY on localhost - NEVER on static GitHub Pages to prevent CDN rate-limits
   useEffect(() => {
+    const isLocalBackend = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (!isLocalBackend) return;
+
     syncWithBackend();
     const interval = setInterval(() => {
       if (!document.hidden) {
         syncWithBackend();
       }
-    }, 2500);
+    }, 3000);
     return () => clearInterval(interval);
   }, [syncWithBackend]);
 
@@ -243,27 +252,33 @@ export default function App() {
     // Sync latest customers and requests before resolving role
     let currentCustList = authorizedCustomers;
     let currentReqList = customerRequests;
-    try {
-      const res = await fetch('/api/data');
-      if (res.ok) {
-        const data = await res.json();
-        if (data._version) {
-          backendVersionRef.current = data._version;
+
+    const isLocalBackend = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalBackend) {
+      try {
+        const res = await fetch('/api/data');
+        if (res.ok) {
+          const data = await res.json();
+          if (data._version) {
+            backendVersionRef.current = data._version;
+          }
+          if (data.authorizedCustomers) {
+            currentCustList = data.authorizedCustomers;
+            setAuthorizedCustomers(data.authorizedCustomers);
+          }
+          if (data.customerRequests) {
+            currentReqList = data.customerRequests;
+            setCustomerRequests(data.customerRequests);
+          }
+          if (data.messages) {
+            setMessages(data.messages);
+          }
         }
-        if (data.authorizedCustomers) {
-          currentCustList = data.authorizedCustomers;
-          setAuthorizedCustomers(data.authorizedCustomers);
-        }
-        if (data.customerRequests) {
-          currentReqList = data.customerRequests;
-          setCustomerRequests(data.customerRequests);
-        }
-        if (data.messages) {
-          setMessages(data.messages);
-        }
+      } catch (e) {
+        console.warn(e);
       }
-    } catch (e) {
-      console.warn(e);
     }
 
     const cleanEmail = email.trim().toLowerCase();
