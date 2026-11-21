@@ -7,7 +7,10 @@ import {
   MAIN_ADMIN_EMAIL, 
   INITIAL_CUSTOMERS, 
   INITIAL_CUSTOMER_REQUESTS, 
-  INITIAL_PETS, 
+  INITIAL_PETS,
+  INITIAL_ORDERS,
+  INITIAL_MESSAGES,
+  INITIAL_APPSCRIPT_URL,
   ROLE_DEFINITIONS 
 } from './mockData';
 import { ShieldCheck, PawPrint, ShoppingBag, Sparkles, UserPlus, CheckCircle2 } from 'lucide-react';
@@ -40,17 +43,25 @@ export default function App() {
   const [orders, setOrders] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_orders');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_ORDERS;
     } catch {
-      return [];
+      return INITIAL_ORDERS;
     }
   });
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem('pawnest_messages');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_MESSAGES;
     } catch {
-      return [];
+      return INITIAL_MESSAGES;
     }
   });
   const [cart, setCart] = useState(() => {
@@ -65,9 +76,9 @@ export default function App() {
   const [userDashboardTab, setUserDashboardTab] = useState('marketplace');
   const [appscriptUrl, setAppscriptUrl] = useState(() => {
     try {
-      return localStorage.getItem('pawnest_appscript_url') || '';
+      return localStorage.getItem('pawnest_appscript_url') || INITIAL_APPSCRIPT_URL;
     } catch {
-      return '';
+      return INITIAL_APPSCRIPT_URL;
     }
   });
 
