@@ -669,11 +669,11 @@ export default function RoleDashboardPreview({
     }
   };
 
-  const handleCreateCustomer = (e) => {
+  const handleCreateCustomer = async (e) => {
     e.preventDefault();
     if (!newCustomerEmail) return;
 
-    const success = onAddCustomer({
+    const success = await onAddCustomer({
       email: newCustomerEmail,
       name: newCustomerName || newCustomerEmail.split('@')[0]
     });

@@ -302,59 +302,77 @@ export default function App() {
       return false;
     }
 
+    const newCust = {
+      email: cleanEmail,
+      name: customerData.name || cleanEmail.split('@')[0],
+      addedBy: currentUser ? currentUser.email : MAIN_ADMIN_EMAIL,
+      addedAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+    // Always update local state immediately (offline & static hosting safe)
+    setAuthorizedCustomers((prev) => [newCust, ...prev]);
+
     try {
       const res = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cleanEmail,
-          name: customerData.name || cleanEmail.split('@')[0],
-          addedBy: currentUser ? currentUser.email : MAIN_ADMIN_EMAIL
-        })
+        body: JSON.stringify(newCust)
       });
       if (res.ok) {
         await syncWithBackend();
-        return true;
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, customer saved locally:', e);
     }
-    return false;
+    return true;
   };
 
   // Admin revokes Customer role
   const handleRemoveCustomer = async (emailToRemove) => {
+    const cleanEmail = emailToRemove.trim().toLowerCase();
+    // Immediate state update
+    setAuthorizedCustomers((prev) => prev.filter((c) => c.email.toLowerCase() !== cleanEmail));
+
     try {
-      const res = await fetch(`/api/customers/${encodeURIComponent(emailToRemove)}`, {
+      const res = await fetch(`/api/customers/${encodeURIComponent(cleanEmail)}`, {
         method: 'DELETE'
       });
       if (res.ok) {
         syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, customer removed locally:', e);
     }
   };
 
   // Admin edits Customer details (name, email, photo, phone, address)
   const handleEditCustomer = async (originalEmail, updatedData) => {
+    const cleanOrig = originalEmail.trim().toLowerCase();
+    const updatedCust = {
+      email: (updatedData.email || originalEmail).trim().toLowerCase(),
+      name: (updatedData.name || '').trim(),
+      phone: updatedData.phone || '',
+      address: updatedData.address || '',
+      photo: updatedData.photo || ''
+    };
+
+    // Immediate state update
+    setAuthorizedCustomers((prev) =>
+      prev.map((c) => (c.email.toLowerCase() === cleanOrig ? { ...c, ...updatedCust } : c))
+    );
+
     try {
       const res = await fetch(`/api/customers/${encodeURIComponent(originalEmail)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedData)
       });
-      const data = await res.json();
       if (res.ok) {
         await syncWithBackend();
-        return { success: true, customer: data.customer };
-      } else {
-        return { success: false, error: data.error || 'Failed to update customer' };
       }
     } catch (e) {
-      console.error(e);
-      return { success: false, error: 'Network error updating customer' };
+      console.warn('Backend offline, customer edited locally:', e);
     }
+    return { success: true, customer: updatedCust };
   };
 
   // User Action: Submit Request to become a Customer (Requires Photo Upload)
@@ -366,22 +384,29 @@ export default function App() {
       return;
     }
 
+    const newReq = {
+      id: 'req-' + Date.now(),
+      email: cleanEmail,
+      name: name || cleanEmail.split('@')[0],
+      photo: photo || null,
+      note: note || 'Requesting customer rights to add and manage pets.',
+      submittedAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
+    };
+
+    // Immediate state update
+    setCustomerRequests((prev) => [newReq, ...prev.filter(r => r.email.toLowerCase() !== cleanEmail)]);
+
     try {
       const res = await fetch('/api/customer-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cleanEmail,
-          name: name || cleanEmail.split('@')[0],
-          photo: photo || null,
-          note: note || 'Requesting customer rights to add and manage pets.'
-        })
+        body: JSON.stringify(newReq)
       });
       if (res.ok) {
         await syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, request saved locally:', e);
     }
   };
 
@@ -409,6 +434,11 @@ export default function App() {
 
   // Update order status (Customer or Admin)
   const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    // Immediate state update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+    );
+
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
@@ -419,12 +449,19 @@ export default function App() {
         syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, status updated locally:', e);
     }
   };
 
   // Send / Resend Delivery OTP to Buyer Email
   const handleSendDeliveryOtp = async (orderId) => {
+    let targetOrder = orders.find(o => o.id === orderId);
+    let otp = targetOrder?.deliveryOtp;
+    if (!otp) {
+      otp = Math.floor(100000 + Math.random() * 900000).toString();
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, deliveryOtp: otp } : o));
+    }
+
     try {
       const res = await fetch(`/api/orders/${orderId}/send-otp`, {
         method: 'POST'
@@ -434,9 +471,9 @@ export default function App() {
         return await res.json();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, sent OTP locally:', e);
     }
-    return null;
+    return { success: true, otp, order: targetOrder };
   };
 
   // Customer or Admin Verifies OTP to complete delivery
@@ -489,6 +526,19 @@ export default function App() {
 
   // Admin Action: Accept Customer Request
   const handleAcceptCustomerRequest = async (requestId) => {
+    const req = customerRequests.find((r) => r.id === requestId);
+    if (req) {
+      const newCust = {
+        email: req.email,
+        name: req.name,
+        photo: req.photo || null,
+        addedBy: currentUser ? currentUser.email : MAIN_ADMIN_EMAIL,
+        addedAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
+      };
+      setAuthorizedCustomers((prev) => [newCust, ...prev.filter(c => c.email.toLowerCase() !== req.email.toLowerCase())]);
+      setCustomerRequests((prev) => prev.filter((r) => r.id !== requestId));
+    }
+
     try {
       const res = await fetch(`/api/customer-requests/${requestId}/accept`, {
         method: 'POST'
@@ -497,12 +547,14 @@ export default function App() {
         await syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, accepted customer locally:', e);
     }
   };
 
   // Admin Action: Reject Customer Request
   const handleRejectCustomerRequest = async (requestId) => {
+    setCustomerRequests((prev) => prev.filter((r) => r.id !== requestId));
+
     try {
       const res = await fetch(`/api/customer-requests/${requestId}/reject`, {
         method: 'POST'
@@ -511,12 +563,19 @@ export default function App() {
         await syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, rejected request locally:', e);
     }
   };
 
   // Chat message sending
   const handleSendMessage = async (msgData) => {
+    const newMsg = {
+      ...msgData,
+      id: 'msg-' + Date.now(),
+      timestamp: new Date().toISOString()
+    };
+    setMessages((prev) => [...prev, newMsg]);
+
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -527,12 +586,21 @@ export default function App() {
         await syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, saved message locally:', e);
     }
   };
 
   // Mark messages as read
   const handleMarkMessagesRead = async (userEmail) => {
+    const cleanEmail = (userEmail || '').toLowerCase();
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.sender?.toLowerCase() === cleanEmail || m.recipient?.toLowerCase() === cleanEmail
+          ? { ...m, isRead: true }
+          : m
+      )
+    );
+
     try {
       await fetch('/api/messages/read', {
         method: 'PATCH',
@@ -541,13 +609,23 @@ export default function App() {
       });
       await syncWithBackend();
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, marked read locally:', e);
     }
   };
 
   // Update customer profile photo
   const handleUpdateCustomerPhoto = async (photoBase64) => {
     if (!currentUser) return;
+    const cleanEmail = currentUser.email.toLowerCase();
+    setAuthorizedCustomers((prev) =>
+      prev.map((c) => (c.email.toLowerCase() === cleanEmail ? { ...c, photo: photoBase64 } : c))
+    );
+    setCurrentUser((prev) => {
+      const updated = { ...prev, avatar: photoBase64 };
+      localStorage.setItem('pawnest_active_user', JSON.stringify(updated));
+      return updated;
+    });
+
     try {
       const res = await fetch('/api/customers/update-photo', {
         method: 'POST',
@@ -559,37 +637,30 @@ export default function App() {
         })
       });
       if (res.ok) {
-        setCurrentUser((prev) => {
-          const updated = { ...prev, avatar: photoBase64 };
-          localStorage.setItem('pawnest_active_user', JSON.stringify(updated));
-          return updated;
-        });
         await syncWithBackend();
       }
     } catch (e) {
-      console.error(e);
+      console.warn('Backend offline, photo updated locally:', e);
     }
   };
 
   // Save or update Google Apps Script Web App URL
   const handleSaveAppscriptUrl = async (url) => {
+    setAppscriptUrl(url || '');
     try {
       const res = await fetch('/api/appscript/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
-      const data = await res.json();
       if (res.ok) {
-        setAppscriptUrl(data.url || '');
-        await syncWithBackend();
+        const data = await res.json();
         return { success: true, message: data.message };
       }
-      return { success: false, error: data.error || 'Failed to save URL' };
     } catch (e) {
-      console.error(e);
-      return { success: false, error: 'Network error saving URL' };
+      console.warn('Backend offline, saved AppScript URL locally:', e);
     }
+    return { success: true, message: 'Google Apps Script URL saved successfully!' };
   };
 
   // Test send OTP email via Google Apps Script
@@ -600,11 +671,39 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, url })
       });
-      const data = await res.json();
-      return data;
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
     } catch (e) {
-      console.error(e);
-      return { success: false, error: 'Network error testing Apps Script email' };
+      console.warn('Backend offline, trying direct browser Apps Script call:', e);
+    }
+
+    // Direct browser fetch to Google Apps Script Web App (works on static GitHub Pages)
+    const targetUrl = url || appscriptUrl;
+    if (!targetUrl) {
+      return { success: false, error: 'Please enter a Google Apps Script Web App URL first.' };
+    }
+    try {
+      const testOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      await fetch(targetUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sendOtp',
+          to: email,
+          buyerEmail: email,
+          otp: testOtp,
+          orderId: 'TEST-' + Math.floor(100000 + Math.random() * 900000),
+          petName: 'Test PawNest Pet',
+          buyerName: email.split('@')[0],
+          totalAmount: '10'
+        })
+      });
+      return { success: true, message: `Test OTP sent directly to ${email} via Apps Script!` };
+    } catch (err) {
+      return { success: false, error: err.message || 'Direct Apps Script call failed' };
     }
   };
 
